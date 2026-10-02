@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Daywise — Smart Mobile-First To-Do</title>
+  
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- Mobile View Wrapper for Desktop / Responsive Frame -->
+  <div id="app-container">
+
+    <!-- Top App Bar -->
+    <header id="app-top-bar" class="sticky top-0 bg-white/90 backdrop-blur-md border-b border-slate-100 z-30 px-5 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/30">
+          <i data-lucide="check" class="w-5 h-5 stroke-[3]"></i>
+        </div>
+        <div>
+          <span class="text-base font-extrabold tracking-tight text-slate-900 leading-none">Daywise</span>
+          <span class="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none mt-0.5">Focus Daily</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Desktop view toggle -->
+        <button id="desktop-view-toggle" class="hidden md:inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition" title="Toggle Phone / Expanded Width">
+          <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+          <span id="view-toggle-text">Expanded</span>
+        </button>
+
+        <!-- Notification Bell with unread counter -->
+        <button id="notif-bell-btn" class="relative p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition" title="Notifications">
+          <i data-lucide="bell" class="w-5 h-5"></i>
+          <span id="notif-badge" class="hidden absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-extrabold rounded-full flex items-center justify-center">0</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Views (Swapped dynamically) -->
+    <main class="flex-1 pb-16">
+      <div id="view-dashboard"></div>
+      <div id="view-tasks" class="hidden"></div>
+      <div id="view-calendar" class="hidden"></div>
+      <div id="view-settings" class="hidden"></div>
+    </main>
+
+    <!-- Prominent Floating Action Button (Add Task) -->
+    <button id="main-fab" class="fab-button" title="Create New Task">
+      <i data-lucide="plus" class="w-6 h-6 stroke-[2.5]"></i>
+    </button>
+
+    <!-- Fixed Bottom Navigation Bar -->
+    <nav id="bottom-nav" class="bottom-nav">
+      <button class="nav-item active" data-tab="dashboard">
+        <i data-lucide="home" class="w-5 h-5 mb-0.5"></i>
+        <span>Today</span>
+      </button>
+      <button class="nav-item" data-tab="tasks">
+        <i data-lucide="check-square" class="w-5 h-5 mb-0.5"></i>
+        <span>Tasks</span>
+      </button>
+      <button class="nav-item" data-tab="calendar">
+        <i data-lucide="calendar" class="w-5 h-5 mb-0.5"></i>
+        <span>Calendar</span>
+      </button>
+      <button class="nav-item" data-tab="settings">
+        <i data-lucide="sliders" class="w-5 h-5 mb-0.5"></i>
+        <span>Settings</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- Task Create & Edit Bottom Sheet Modal -->
+  <div id="task-modal" class="modal-backdrop">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+        <h3 id="task-modal-heading" class="text-base font-bold text-slate-900">New Task</h3>
+        <button type="button" class="close-modal-trigger p-1 text-slate-400 hover:text-slate-600 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="task-form" class="space-y-4">
+        <!-- Title Input -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Task Title *</label>
+          <input 
+            type="text" 
+            id="task-input-title" 
+            required 
+            placeholder="What needs to get done?"
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+          />
+        </div>
+
+        <!-- Notes Input -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Notes & Description</label>
+          <textarea 
+            id="task-input-notes" 
+            rows="2" 
+            placeholder="Add extra context, links, details..."
+            class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+          ></textarea>
+        </div>
+
+        <!-- Date & Time Row -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Due Date</label>
+            <input 
+              type="date" 
+              id="task-input-date" 
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-500" 
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Due Time</label>
+            <input 
+              type="time" 
+              id="task-input-time" 
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-500" 
+            />
+          </div>
+        </div>
+
+        <!-- Priority & Category Row -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Priority</label>
+            <select id="task-input-priority" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500">
+              <option value="low">Low Priority</option>
+              <option value="medium" selected>Medium Priority</option>
+              <option value="high">High Priority</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Category</label>
+            <select id="task-input-category" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500">
+              <option value="">No Category</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Repeat Schedule -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Repeat Schedule</label>
+          <select id="task-input-repeat" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500">
+            <option value="none">Never (One-time)</option>
+            <option value="daily">Daily</option>
+            <option value="weekdays">Weekdays (Mon–Fri)</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+
+        <!-- Subtasks Checklist Section -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Subtasks Checklist</label>
+          <div id="task-subtasks-list" class="space-y-1.5 mb-2"></div>
+          
+          <div class="flex items-center gap-2">
+            <input 
+              type="text" 
+              id="new-subtask-input" 
+              placeholder="Add a subtask step..." 
+              class="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+            />
+            <button type="button" id="add-subtask-btn" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
+              + Add
+            </button>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="pt-3 border-t border-slate-100 flex items-center gap-3">
+          <button type="button" id="task-delete-btn" class="hidden px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+            <span>Delete</span>
+          </button>
+          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-500/20">
+            Save Task
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Custom Category Modal -->
+  <div id="category-modal" class="modal-backdrop">
+    <div class="center-modal">
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+        <h3 class="text-sm font-bold text-slate-900">New Category</h3>
+        <button type="button" class="close-modal-trigger p-1 text-slate-400 hover:text-slate-600 rounded-lg">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="category-form" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Category Name</label>
+          <input 
+            type="text" 
+            id="cat-input-name" 
+            required 
+            placeholder="e.g., Side Hustle, Finance, Habits"
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+
+        <!-- Color Palette -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-2">Color</label>
+          <div class="flex items-center gap-2.5 justify-between">
+            <label class="cursor-pointer">
+              <input type="radio" name="cat-color" value="#4F46E5" checked class="sr-only peer" />
+              <div class="w-7 h-7 rounded-full bg-[#4F46E5] ring-offset-2 peer-checked:ring-2 peer-checked:ring-indigo-600 transition"></div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="cat-color" value="#059669" class="sr-only peer" />
+              <div class="w-7 h-7 rounded-full bg-[#059669] ring-offset-2 peer-checked:ring-2 peer-checked:ring-emerald-600 transition"></div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="cat-color" value="#D97706" class="sr-only peer" />
+              <div class="w-7 h-7 rounded-full bg-[#D97706] ring-offset-2 peer-checked:ring-2 peer-checked:ring-amber-600 transition"></div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="cat-color" value="#E11D48" class="sr-only peer" />
+              <div class="w-7 h-7 rounded-full bg-[#E11D48] ring-offset-2 peer-checked:ring-2 peer-checked:ring-rose-600 transition"></div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="cat-color" value="#7C3AED" class="sr-only peer" />
+              <div class="w-7 h-7 rounded-full bg-[#7C3AED] ring-offset-2 peer-checked:ring-2 peer-checked:ring-purple-600 transition"></div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="cat-color" value="#0284C7" class="sr-only peer" />
+              <div class="w-7 h-7 rounded-full bg-[#0284C7] ring-offset-2 peer-checked:ring-2 peer-checked:ring-sky-600 transition"></div>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Icon Style</label>
+          <select id="cat-input-icon" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800">
+            <option value="tag">Tag</option>
+            <option value="briefcase">Briefcase</option>
+            <option value="book-open">Book</option>
+            <option value="heart">Heart</option>
+            <option value="star">Star</option>
+            <option value="code">Code</option>
+          </select>
+        </div>
+
+        <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition">
+          Create Category
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirm-modal" class="modal-backdrop">
+    <div class="center-modal">
+      <h3 id="confirm-modal-title" class="text-sm font-bold text-slate-900 mb-1.5">Are you sure?</h3>
+      <p id="confirm-modal-msg" class="text-xs text-slate-500 mb-5 leading-relaxed">This action cannot be undone.</p>
+      <div class="flex items-center gap-2.5">
+        <button type="button" class="close-modal-trigger flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
+          Cancel
+        </button>
+        <button type="button" id="confirm-modal-action-btn" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow">
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Drawer Modal -->
+  <div id="notification-modal" class="modal-backdrop">
+    <div class="bottom-sheet max-h-[80vh]">
+      <div class="sheet-handle"></div>
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <i data-lucide="bell" class="w-4 h-4 text-indigo-600"></i>
+          <h3 class="text-sm font-bold text-slate-900">Notifications</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="mark-all-read-btn" class="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700">
+            Mark all read
+          </button>
+          <button id="close-notif-btn" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+      <div id="notification-list-container" class="space-y-2 overflow-y-auto max-h-[60vh] pr-1"></div>
+    </div>
+  </div>
+
+  <!-- Email Verification Modal -->
+  <div id="verify-modal" class="modal-backdrop">
+    <div class="center-modal">
+      <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
+        <h3 class="text-sm font-bold text-slate-900">Verify Email Address</h3>
+        <button type="button" class="close-modal-trigger p-1 text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-500 mb-3 leading-relaxed">
+        Enter the verification token received in your email (or generated in simulation mode).
+      </p>
+      <form id="verify-form" class="space-y-3">
+        <input 
+          type="text" 
+          id="verify-input-token" 
+          required 
+          placeholder="Paste verification token"
+          class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-indigo-500"
+        />
+        <div class="flex items-center gap-2">
+          <button type="button" id="resend-verify-btn" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">
+            Resend Token
+          </button>
+          <button type="submit" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow">
+            Verify Now
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Forgot Password Request Modal -->
+  <div id="forgot-modal" class="modal-backdrop">
+    <div class="center-modal">
+      <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
+        <h3 class="text-sm font-bold text-slate-900">Reset Password</h3>
+        <button type="button" class="close-modal-trigger p-1 text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-500 mb-3 leading-relaxed">
+        Enter your account email to receive a password reset token.
+      </p>
+      <form id="forgot-form" class="space-y-3">
+        <input 
+          type="email" 
+          id="forgot-email" 
+          required 
+          placeholder="name@example.com"
+          class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-indigo-500"
+        />
+        <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow">
+          Send Reset Token
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Reset Password Confirm Modal -->
+  <div id="reset-modal" class="modal-backdrop">
+    <div class="center-modal">
+      <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
+        <h3 class="text-sm font-bold text-slate-900">Set New Password</h3>
+        <button type="button" class="close-modal-trigger p-1 text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <form id="reset-form" class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-700 mb-1">Reset Token</label>
+          <input 
+            type="text" 
+            id="reset-input-token" 
+            required 
+            placeholder="Paste token"
+            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-700 mb-1">New Password (min 6 chars)</label>
+          <input 
+            type="password" 
+            id="reset-input-new-pass" 
+            required 
+            minlength="6"
+            placeholder="Enter new password"
+            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+        <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow">
+          Update Password
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Authentication Modal (Sign In / Sign Up) -->
+  <div id="auth-modal" class="modal-backdrop">
+    <div class="center-modal max-w-sm">
+      <div class="text-center mb-4">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center mx-auto mb-2 shadow-lg shadow-indigo-500/30">
+          <i data-lucide="check" class="w-7 h-7 stroke-[3]"></i>
+        </div>
+        <h2 class="text-lg font-extrabold text-slate-900">Welcome to Daywise</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Your focused daily productivity companion</p>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl mb-4">
+        <button id="auth-tab-signin" class="flex-1 py-2 rounded-xl text-xs font-bold text-center bg-white text-indigo-600 shadow-sm transition">
+          Sign In
+        </button>
+        <button id="auth-tab-signup" class="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-slate-500 hover:text-slate-800 transition">
+          Create Account
+        </button>
+      </div>
+
+      <!-- Quick Demo Login Button -->
+      <button id="auth-demo-login-btn" type="button" class="w-full mb-3 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-indigo-200/50">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-600"></i>
+        <span>Try One-Click Demo Account</span>
+      </button>
+
+      <!-- Sign In Form -->
+      <form id="auth-signin-form" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+          <input 
+            type="email" 
+            id="signin-email" 
+            required 
+            placeholder="alex@example.com"
+            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500" 
+          />
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs font-semibold text-slate-700">Password</label>
+            <a href="#" id="link-forgot-password" class="text-[11px] text-indigo-600 hover:underline font-semibold">Forgot?</a>
+          </div>
+          <input 
+            type="password" 
+            id="signin-password" 
+            required 
+            placeholder="••••••••"
+            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500" 
+          />
+        </div>
+        <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-500/20">
+          Sign In
+        </button>
+      </form>
+
+      <!-- Sign Up Form (hidden by default) -->
+      <form id="auth-signup-form" class="space-y-3 hidden">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+          <input 
+            type="text" 
+            id="signup-name" 
+            placeholder="Alex Morgan"
+            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500" 
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+          <input 
+            type="email" 
+            id="signup-email" 
+            required 
+            placeholder="alex@example.com"
+            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500" 
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Password (min 6 characters)</label>
+          <input 
+            type="password" 
+            id="signup-password" 
+            required 
+            minlength="6"
+            placeholder="Create password"
+            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500" 
+          />
+        </div>
+        <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-500/20">
+          Create Account
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ES6 App Entry Point -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
