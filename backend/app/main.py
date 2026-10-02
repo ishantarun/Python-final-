@@ -11,14 +11,18 @@ from backend.app.database import init_db
 from backend.app.scheduler import start_scheduler, stop_scheduler
 from backend.app.routers import auth, tasks, categories, notifications, users
 
+is_serverless = bool(os.environ.get("VERCEL"))
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize DB and background scheduler
+    # Startup: Initialize DB
     init_db()
-    start_scheduler()
+    if not is_serverless and settings.ENABLE_BACKGROUND_SCHEDULER:
+        start_scheduler()
     yield
-    # Shutdown: Stop background scheduler
-    stop_scheduler()
+    # Shutdown: Stop background scheduler if running
+    if not is_serverless and settings.ENABLE_BACKGROUND_SCHEDULER:
+        stop_scheduler()
 
 app = FastAPI(
     title="Daywise API",

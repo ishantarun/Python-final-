@@ -2,10 +2,20 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 from backend.app.config import settings
 
+import os
+
 # Normalize PostgreSQL URL if needed (e.g., postgres:// -> postgresql://)
 db_url = settings.DATABASE_URL
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+import tempfile
+from pathlib import Path
+
+# On Vercel serverless, standard root filesystem is read-only. Fallback to /tmp for SQLite
+if os.environ.get("VERCEL") and (db_url.startswith("sqlite:///./") or db_url == "sqlite:///./daywise.db"):
+    temp_db_path = Path(tempfile.gettempdir()) / "daywise.db"
+    db_url = f"sqlite:///{temp_db_path.as_posix()}"
 
 connect_args = {}
 if db_url.startswith("sqlite"):
