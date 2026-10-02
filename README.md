@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Daywise ☀️ — Mobile-First To-Do Web App
 
 Daywise is a modern, mobile-first daily task management web application crafted with a focus on seamless smartphone ergonomics (specifically phone viewports around **390 × 844 px**) while remaining fully responsive and usable on tablets and desktop browsers.
@@ -232,3 +233,6 @@ daywise/
         ├── settings.js   # Preferences, categories, SMTP status
         └── app.js        # Master app orchestrator
 ```
+=======
+# Python-final-
+>>>>>>> 94890c6674380c4d832d0a4f2adfb386c87a7799
